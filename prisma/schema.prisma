@@ -1,0 +1,403 @@
+// AETHER Trading Platform - Production Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  fullName        String
+  phone           String?
+  avatar          String?
+  role            Role      @default(USER)
+  status          UserStatus @default(ACTIVE)
+  emailVerified   Boolean   @default(false)
+  emailVerifyToken String?
+  resetToken      String?
+  resetTokenExpiry DateTime?
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret  String?
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  subscription    Subscription?
+  brokerAccounts  BrokerAccount[]
+  botInstances    BotInstance[]
+  transactions    Transaction[]
+  sessions        Session[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  referralCode    String?   @unique
+  referredBy      String?
+
+  @@index([email])
+  @@index([referralCode])
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  BANNED
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique
+  refreshToken String  @unique
+  ipAddress   String?
+  userAgent   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ============================================
+// SUBSCRIPTION & BILLING
+// ============================================
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  plan              Plan     @default(FREE)
+  status            SubStatus @default(INACTIVE)
+  stripeCustomerId  String?  @unique
+  stripeSubId       String?  @unique
+  stripePriceId     String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean  @default(false)
+  trialEndsAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments          Payment[]
+
+  @@index([stripeCustomerId])
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubStatus {
+  ACTIVE
+  INACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  subscriptionId  String
+  amount          Float
+  currency        String   @default("USD")
+  status          PaymentStatus
+  stripePaymentId String?  @unique
+  invoiceUrl      String?
+  description     String?
+  createdAt       DateTime @default(now())
+
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// ============================================
+// BROKER & MT5 CONNECTION
+// ============================================
+model BrokerAccount {
+  id              String   @id @default(cuid())
+  userId          String
+  broker          String   // e.g. "ICMarkets", "Exness", "XM"
+  mt5Login        String
+  mt5Server       String
+  metaApiAccountId String? @unique // MetaApi cloud account ID
+  accountType     AccountType @default(LIVE)
+  balance         Float    @default(0)
+  equity          Float    @default(0)
+  leverage        Int      @default(100)
+  currency        String   @default("USD")
+  status          BrokerStatus @default(DISCONNECTED)
+  ibReferralCode  String?  // Our IB referral code used
+  connectedAt     DateTime?
+  lastSyncAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  botInstance     BotInstance?
+  trades          Trade[]
+
+  @@unique([mt5Login, mt5Server])
+  @@index([userId])
+}
+
+enum AccountType {
+  DEMO
+  LIVE
+}
+
+enum BrokerStatus {
+  CONNECTED
+  DISCONNECTED
+  SYNCING
+  ERROR
+}
+
+// ============================================
+// BOT ENGINE & COPY TRADING
+// ============================================
+model BotStrategy {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  type            StrategyType
+  metaApiStrategyId String? @unique // CopyFactory strategy ID
+  providerAccountId String? // The master MT5 account
+  riskLevel       RiskLevel @default(MEDIUM)
+  maxDrawdown     Float    @default(20) // percentage
+  defaultLotSize  Float    @default(0.01)
+  symbols         String[] // e.g. ["EURUSD", "GBPUSD"]
+  timeframes      String[] // e.g. ["M15", "H1"]
+  isActive        Boolean  @default(true)
+  totalPnl        Float    @default(0)
+  winRate         Float    @default(0)
+  totalTrades     Int      @default(0)
+  monthlyReturn   Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  botInstances    BotInstance[]
+
+  @@index([isActive])
+}
+
+enum StrategyType {
+  SCALPING
+  SWING
+  TREND_FOLLOWING
+  GRID
+  HEDGING
+  AI_HYBRID
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  AGGRESSIVE
+}
+
+model BotInstance {
+  id              String   @id @default(cuid())
+  userId          String
+  brokerAccountId String   @unique
+  strategyId      String
+  metaApiSubscriberId String? // CopyFactory subscriber ID
+  status          BotStatus @default(STOPPED)
+  lotMultiplier   Float    @default(1.0)
+  maxRiskPercent  Float    @default(2.0) // per trade
+  maxDailyLoss    Float    @default(5.0) // percentage
+  totalPnl        Float    @default(0)
+  totalTrades     Int      @default(0)
+  winTrades       Int      @default(0)
+  lossTrades      Int      @default(0)
+  profitCommission Float   @default(0) // commission owed to platform
+  commissionRate   Float   @default(20) // % of profit
+  lastTradeAt     DateTime?
+  startedAt       DateTime?
+  stoppedAt       DateTime?
+  disabledByAdmin Boolean  @default(false)
+  disableReason   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id])
+  strategy        BotStrategy @relation(fields: [strategyId], references: [id])
+  trades          Trade[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum BotStatus {
+  RUNNING
+  STOPPED
+  PAUSED
+  ERROR
+  DISABLED_BY_ADMIN
+  PENDING_COMMISSION
+}
+
+// ============================================
+// TRADES & TRANSACTIONS
+// ============================================
+model Trade {
+  id              String   @id @default(cuid())
+  userId          String
+  brokerAccountId String
+  botInstanceId   String?
+  mt5TicketId     String?
+  symbol          String
+  type            TradeType
+  direction       TradeDirection
+  lotSize         Float
+  openPrice       Float
+  closePrice      Float?
+  stopLoss        Float?
+  takeProfit      Float?
+  pnl             Float?
+  pnlUsd          Float?  // Always in USD
+  commission      Float   @default(0)
+  swap            Float   @default(0)
+  status          TradeStatus @default(OPEN)
+  openedAt        DateTime
+  closedAt        DateTime?
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id])
+  brokerAccount   BrokerAccount @relation(fields: [brokerAccountId], references: [id])
+  botInstance     BotInstance? @relation(fields: [botInstanceId], references: [id])
+
+  @@index([userId])
+  @@index([botInstanceId])
+  @@index([symbol])
+  @@index([status])
+}
+
+enum TradeType {
+  MARKET
+  LIMIT
+  STOP
+  COPY
+}
+
+enum TradeDirection {
+  BUY
+  SELL
+}
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+  PARTIALLY_CLOSED
+  CANCELED
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  type        TxType
+  amount      Float
+  currency    String   @default("USD")
+  description String?
+  reference   String?
+  status      TxStatus @default(PENDING)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+}
+
+enum TxType {
+  SUBSCRIPTION_PAYMENT
+  COMMISSION_EARNED
+  COMMISSION_PAID
+  IB_COMMISSION
+  REFUND
+  WITHDRAWAL
+}
+
+enum TxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// ============================================
+// ADMIN & SYSTEM
+// ============================================
+model SystemConfig {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  resourceId String?
+  details   Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      NotifType
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+enum NotifType {
+  TRADE
+  COMMISSION
+  SUBSCRIPTION
+  SYSTEM
+  BOT
+  SECURITY
+}
