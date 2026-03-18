@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/security/jwt';
 import { metaApiClient } from '@/lib/broker/metaapi-client';

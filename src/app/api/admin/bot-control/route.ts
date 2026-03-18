@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateAdmin } from '@/lib/security/jwt';
 import { botManager } from '@/lib/bot/bot-manager';

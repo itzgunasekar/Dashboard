@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe, handleWebhookEvent } from '@/lib/payments/stripe-client';
 
