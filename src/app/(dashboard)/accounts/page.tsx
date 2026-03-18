@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 
 const SUPPORTED_BROKERS = [
@@ -19,6 +19,21 @@ export default function AccountsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [accounts, setAccounts] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getBrokerAccounts().then((r) => setAccounts(r.accounts || [])).catch(() => {});
+  }, []);
+
+  async function handleDisconnect(id: string) {
+    if (!confirm('Are you sure you want to disconnect this account? Running bots will be stopped.')) return;
+    try {
+      await api.disconnectBroker(id);
+      setAccounts(accounts.filter(a => a.id !== id));
+      setSuccess('Account disconnected successfully');
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
 
   const selectedBroker = SUPPORTED_BROKERS.find(b => b.name === form.broker);
   const update = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm({ ...form, [k]: e.target.value });
@@ -167,7 +182,7 @@ export default function AccountsPage() {
                   <td className="font-mono">${a.balance?.toFixed(2)}</td>
                   <td className="font-mono">${a.equity?.toFixed(2)}</td>
                   <td><span className="badge badge-success">Connected</span></td>
-                  <td><button className="text-xs text-red-400 hover:text-red-300">Disconnect</button></td>
+                  <td><button onClick={() => handleDisconnect(a.id)} className="text-xs text-red-400 hover:text-red-300">Disconnect</button></td>
                 </tr>
               ))}
             </tbody>

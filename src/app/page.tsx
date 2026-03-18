@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
 
 const FEATURES = [
   { icon: '⚡', title: 'AI Trading Bot', desc: 'Our proprietary AI engine analyzes markets 24/7, executing trades with sub-second precision across multiple forex pairs.' },
@@ -17,21 +16,6 @@ const PLANS = [
   { name: 'Enterprise', price: 199, features: ['Unlimited Bots', 'Unlimited Accounts', 'Full Analytics Suite', '24/7 Dedicated Support', '15% Profit Commission', 'Custom Strategies', 'API Access'], color: 'emerald' },
 ];
 
-function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const duration = 2000;
-    const step = target / (duration / 16);
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= target) { setVal(target); clearInterval(timer); }
-      else setVal(Math.floor(start));
-    }, 16);
-    return () => clearInterval(timer);
-  }, [target]);
-  return <span className="font-mono">{val.toLocaleString()}{suffix}</span>;
-}
 
 export default function LandingPage() {
   return (
@@ -57,7 +41,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card mb-8 text-xs font-medium text-cyan-400">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Live Trading Active — 2,847 trades executed today
+            AI-Powered Forex Trading Platform — Now Live
           </div>
           <h1 className="font-display text-5xl md:text-7xl font-bold leading-tight mb-6">
             <span className="text-white">Trade Smarter with</span><br />
@@ -76,18 +60,16 @@ export default function LandingPage() {
             <a href="#features" className="btn-secondary text-base !py-3.5 !px-8">Learn More</a>
           </div>
 
-          {/* Stats */}
+          {/* Platform Highlights */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
             {[
-              { label: 'Active Traders', value: 4200, suffix: '+' },
-              { label: 'Monthly Volume', value: 82, suffix: 'M' },
-              { label: 'Win Rate', value: 73, suffix: '%' },
-              { label: 'Avg Monthly Return', value: 12, suffix: '%' },
+              { label: 'Encryption', value: 'AES-256' },
+              { label: 'Broker Protocol', value: 'MT5' },
+              { label: 'Trading', value: '24/7' },
+              { label: 'Copy Trading', value: 'CopyFactory' },
             ].map((s, i) => (
               <div key={i} className="stat-card text-center p-5">
-                <div className="text-2xl font-bold text-white font-display mb-1">
-                  <Counter target={s.value} suffix={s.suffix} />
-                </div>
+                <div className="text-2xl font-bold text-white font-display mb-1">{s.value}</div>
                 <div className="text-xs text-slate-500">{s.label}</div>
               </div>
             ))}
@@ -155,7 +137,7 @@ export default function LandingPage() {
       <section className="py-20 px-6">
         <div className="max-w-3xl mx-auto text-center glass-card p-12">
           <h2 className="font-display text-3xl font-bold text-white mb-4">Ready to Automate Your Trading?</h2>
-          <p className="text-slate-400 mb-8">Join thousands of traders who trust AETHER to execute their forex strategy 24/7.</p>
+          <p className="text-slate-400 mb-8">Connect your MT5 account and let AETHER execute your forex strategy 24/7.</p>
           <Link href="/register" className="btn-primary text-base !py-3.5 !px-8">Create Free Account</Link>
         </div>
       </section>

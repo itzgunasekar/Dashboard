@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 
 const STRATEGIES = [
@@ -15,14 +15,29 @@ export default function BotPage() {
   const [botRunning, setBotRunning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [brokerAccounts, setBrokerAccounts] = useState<any[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
+
+  useEffect(() => {
+    api.getBrokerAccounts().then((r) => {
+      const accts = r.accounts || [];
+      setBrokerAccounts(accts);
+      if (accts.length > 0) setSelectedAccount(accts[0].id);
+    }).catch(() => {});
+    api.getBotInstances().then((r) => {
+      const instances = r.instances || [];
+      if (instances.some((i: any) => i.status === 'RUNNING')) setBotRunning(true);
+    }).catch(() => {});
+  }, []);
 
   async function handleStartBot() {
     if (!selectedStrategy) return setError('Select a strategy first');
     setLoading(true);
     setError('');
     try {
+      if (!selectedAccount) return setError('Connect a broker account first');
       const res = await api.startBot({
-        brokerAccountId: '', // TODO: from user's connected accounts
+        brokerAccountId: selectedAccount,
         strategyId: selectedStrategy,
         lotMultiplier,
         maxRiskPercent: maxRisk,
@@ -39,7 +54,7 @@ export default function BotPage() {
   async function handleStopBot() {
     setLoading(true);
     try {
-      await api.stopBot('');
+      await api.stopBot(selectedAccount);
       setBotRunning(false);
     } catch (err: any) {
       setError(err.message);
@@ -93,6 +108,22 @@ export default function BotPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Broker Account Selection */}
+      <div className="glass-card p-6">
+        <h2 className="font-display text-lg font-semibold text-white mb-4">Trading Account</h2>
+        {brokerAccounts.length === 0 ? (
+          <div className="text-sm text-slate-400">
+            No broker accounts connected. <a href="/accounts" className="text-cyan-400 hover:text-cyan-300">Connect one first →</a>
+          </div>
+        ) : (
+          <select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="input-glass max-w-md">
+            {brokerAccounts.map((a: any) => (
+              <option key={a.id} value={a.id}>{a.broker} — {a.mt5Login} ({a.accountType})</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Risk Configuration */}

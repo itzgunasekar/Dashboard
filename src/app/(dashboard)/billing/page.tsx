@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 
 const PLANS = [
@@ -10,6 +10,13 @@ const PLANS = [
 
 export default function BillingPage() {
   const [loading, setLoading] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.getSubscription().then(setSubscription).catch(() => {});
+    api.getInvoices().then((r) => setInvoices(r.invoices || [])).catch(() => {});
+  }, []);
 
   async function handleSubscribe(plan: string) {
     setLoading(plan);
@@ -35,10 +42,14 @@ export default function BillingPage() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Current Plan</div>
-            <div className="text-xl font-bold font-display text-white">Free</div>
-            <div className="text-sm text-slate-400 mt-1">Upgrade to access AI trading bots</div>
+            <div className="text-xl font-bold font-display text-white">{subscription?.plan || 'Free'}</div>
+            <div className="text-sm text-slate-400 mt-1">
+              {subscription?.status === 'ACTIVE' ? `Active since ${new Date(subscription.startDate).toLocaleDateString()}` : 'Upgrade to access AI trading bots'}
+            </div>
           </div>
-          <span className="badge badge-info">Free Tier</span>
+          <span className={`badge ${subscription?.status === 'ACTIVE' ? 'badge-success' : 'badge-info'}`}>
+            {subscription?.status === 'ACTIVE' ? subscription.plan : 'Free Tier'}
+          </span>
         </div>
       </div>
 
@@ -82,12 +93,30 @@ export default function BillingPage() {
         </p>
       </div>
 
-      {/* Payment History placeholder */}
-      <div className="glass-card p-6">
-        <h2 className="font-display text-lg font-semibold text-white mb-4">Payment History</h2>
-        <div className="text-center py-8">
-          <p className="text-slate-500 text-sm">No payments yet.</p>
+      {/* Payment History */}
+      <div className="glass-card overflow-hidden">
+        <div className="p-6 border-b border-white/5">
+          <h2 className="font-display text-lg font-semibold text-white">Payment History</h2>
         </div>
+        {invoices.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-slate-500 text-sm">No payments yet.</p>
+          </div>
+        ) : (
+          <table className="data-table">
+            <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody>
+              {invoices.map((inv: any) => (
+                <tr key={inv.id}>
+                  <td>{new Date(inv.createdAt).toLocaleDateString()}</td>
+                  <td>{inv.description || 'Subscription'}</td>
+                  <td className="font-mono">${(inv.amount / 100).toFixed(2)}</td>
+                  <td><span className={`badge ${inv.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}`}>{inv.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

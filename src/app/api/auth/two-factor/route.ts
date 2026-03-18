@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { authenticateRequest } from '@/lib/security/jwt';
+import { encrypt, decrypt } from '@/lib/security/encryption';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 
@@ -14,10 +15,10 @@ export async function GET(req: NextRequest) {
     issuer: 'AETHER Trading',
   });
 
-  // Store secret temporarily (not yet verified)
+  // Store secret encrypted (not yet verified)
   await prisma.user.update({
     where: { id: user.id },
-    data: { twoFactorSecret: secret.base32 },
+    data: { twoFactorSecret: encrypt(secret.base32) },
   });
 
   const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url!);
@@ -39,8 +40,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Generate 2FA secret first' }, { status: 400 });
   }
 
+  const decryptedSecret = decrypt(user.twoFactorSecret);
   const verified = speakeasy.totp.verify({
-    secret: user.twoFactorSecret,
+    secret: decryptedSecret,
     encoding: 'base32',
     token: code,
     window: 1,

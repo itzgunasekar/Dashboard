@@ -14,14 +14,14 @@ export default function BotManagementPage() {
       {/* Status Overview */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Running', value: '0', color: 'emerald' },
-          { label: 'Stopped', value: '0', color: 'slate' },
-          { label: 'Disabled (Admin)', value: '0', color: 'rose' },
-          { label: 'Pending Commission', value: '0', color: 'amber' },
+          { label: 'Running', value: '0', colorClass: 'text-emerald-400' },
+          { label: 'Stopped', value: '0', colorClass: 'text-slate-400' },
+          { label: 'Disabled (Admin)', value: '0', colorClass: 'text-rose-400' },
+          { label: 'Pending Commission', value: '0', colorClass: 'text-amber-400' },
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className="text-xs text-slate-500 mb-1">{s.label}</div>
-            <div className={`text-2xl font-bold font-display text-${s.color}-400`}>{s.value}</div>
+            <div className={`text-2xl font-bold font-display ${s.colorClass}`}>{s.value}</div>
           </div>
         ))}
       </div>

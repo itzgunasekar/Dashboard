@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore, useAppStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/store';
 import { useEffect } from 'react';
 
 const NAV_ITEMS = [
