@@ -5,11 +5,13 @@ let prisma: any;
 
 function createPrismaClient() {
   try {
-    const { PrismaClient } = require('@prisma/client');
-    return new PrismaClient({
+    // Dynamic require so build doesn't fail if @prisma/client isn't generated
+    const mod = require('@prisma/client');
+    if (!mod || !mod.PrismaClient) throw new Error('PrismaClient not found');
+    return new mod.PrismaClient({
       log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     });
-  } catch {
+  } catch (e) {
     // Return a safe proxy during build
     return new Proxy({}, {
       get: (_target, prop) => {

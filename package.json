@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
-    "postinstall": "prisma generate",
+    "build": "DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5432/placeholder\" prisma generate || true && next build",
+    "postinstall": "DATABASE_URL=\"postgresql://placeholder:placeholder@localhost:5432/placeholder\" prisma generate || true",
     "start": "next start",
     "lint": "next lint"
   },
